@@ -41,8 +41,7 @@ def main(args):
 
     json_file_path = cfg['dataset']['json_file']
     json_file_dir = os.path.dirname(json_file_path)
-    json_file_name = os.path.basename(json_file_path).replace('.json', f'_{args.division_type}.json')
-    cfg['dataset']['json_file'] = os.path.join(json_file_dir, json_file_name)
+    cfg['dataset']['json_file'] = os.path.join(json_file_dir, f'{args.division_type}.json')
 
     backbone = args.backbone
     division_type = args.division_type
@@ -67,11 +66,12 @@ def main(args):
     elif backbone == 'x3d':
         cfg['dataset']['input_dim'] = (192, 64)
         cfg['model']['input_dim'] = (192, 64)
+    elif backbone == 'egovlp':
+        cfg['dataset']['input_dim'] = 256
+        cfg['model']['input_dim'] = 256
     pprint(cfg)
 
     # prep for output folder (based on time stamp)
-    if not os.path.exists(cfg['output_folder']):
-        os.mkdir(cfg['output_folder'])
     cfg_filename = os.path.basename(args.config).replace('.yaml', '')
     if len(args.output) == 0:
         ts = datetime.datetime.fromtimestamp(int(time.time()))
@@ -81,8 +81,7 @@ def main(args):
             cfg['output_folder'], cfg['dataset_name'],
             output_folder_name + '_' + args.output
         )
-    if not os.path.exists(ckpt_folder):
-        os.mkdir(ckpt_folder)
+    os.makedirs(ckpt_folder, exist_ok=True)
     # tensorboard writer
     tb_writer = SummaryWriter(os.path.join(ckpt_folder, 'logs'))
 
@@ -209,7 +208,7 @@ if __name__ == '__main__':
                         help='path to a checkpoint (default: none)')
     # Added to CLI
     parser.add_argument('--backbone', default='omnivore', type=str,
-                        choices=['omnivore', '3dresnet', 'videomae', 'slowfast', 'x3d'])
+                        choices=['omnivore', '3dresnet', 'videomae', 'slowfast', 'x3d', 'egovlp'])
     parser.add_argument('--division_type', default='recordings', type=str,
                         choices=['recordings', 'person', 'environment', 'recipes'])
     parser.add_argument('--feat_folder', default='features', type=str, )
