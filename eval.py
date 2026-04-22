@@ -38,8 +38,7 @@ def main(args):
 
     json_file_path = cfg['dataset']['json_file']
     json_file_dir = os.path.dirname(json_file_path)
-    json_file_name = os.path.basename(json_file_path).replace('.json', f'_{args.division_type}.json')
-    cfg['dataset']['json_file'] = os.path.join(json_file_dir, json_file_name)
+    cfg['dataset']['json_file'] = os.path.join(json_file_dir, f'{args.division_type}.json')
 
     backbone = args.backbone
     division_type = args.division_type
@@ -99,6 +98,8 @@ def main(args):
         cfg['model']['input_dim'] = 400
     elif args.backbone == 'x3d':
         cfg['model']['input_dim'] = 400
+    elif args.backbone == 'egovlp':
+        cfg['model']['input_dim'] = 256
 
     # model
     model = make_meta_arch(cfg['model_name'], **cfg['model'])
@@ -167,7 +168,7 @@ if __name__ == '__main__':
 
     # Added to CLI
     parser.add_argument('--backbone', default='omnivore', type=str,
-                        choices=['omnivore', '3dresnet', 'videomae', 'slowfast', 'x3d'])
+                        choices=['omnivore', '3dresnet', 'videomae', 'slowfast', 'x3d', 'egovlp'])
     parser.add_argument('--division_type', default='recordings', type=str,
                         choices=['recordings', 'person', 'environment', 'recipes'])
     parser.add_argument('--feat_folder', default='features', type=str,)
