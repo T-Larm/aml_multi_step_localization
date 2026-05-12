@@ -74,6 +74,8 @@ done
 
 **Best result:** `recordings`, epoch 30 → **Average mAP 12.81%**, boundary Mean TIoU **54.51%**
 
+> **Evaluation metric:** Average mAP computed by `ANETdetection` (`actionformer/libs/utils/metrics.py`, adapted from the [ActivityNet official evaluation code](https://github.com/activitynet/ActivityNet), also used in EPIC-Kitchens). Requires both correct label and tIoU ≥ threshold to count as a true positive. Averaged over tIoU = [0.1, 0.2, 0.3, 0.4, 0.5].
+
 > Note: mAP peaks around epoch 30; training beyond 50 epochs causes overfitting.
 
 ---
