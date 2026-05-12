@@ -1,13 +1,24 @@
 """
 Substep 1: Compute step-level EgoVLP embeddings using ActionFormer predicted boundaries.
 
-Input:
-  - ActionFormer output pkl (eval.py --saveonly)
-  - EgoVLP features: egovlp/{video_id}_360p_224.mp4_1s_1s.npz  (T, 256)
+Pipeline:
+  1. Load ActionFormer inference results (.pkl) containing predicted (start, end, label, score)
+     for each video.
+  2. For each video, keep predictions above --score_threshold. If none pass, fall back through
+     lower thresholds (0.25 → 0.20 → 0.15 → 0.1 → 0.05 → 0.01 → top-1).
+  3. Sort selected predictions by start time.
+  4. For each predicted segment, extract the corresponding EgoVLP frame features (1 fps, 256-dim)
+     and aggregate them into a single embedding via Gaussian-weighted average (center frames
+     weighted more), then L2-normalize.
+  5. Save results.
 
-Output:
-  - step_embeddings.pkl: dict { video_id -> np.array (N_steps, 256) }
-  - step_segments.pkl:   dict { video_id -> np.array (N_steps, 2) }  # (start, end) in seconds
+Input:
+  --pred_pkl      : ActionFormer eval_results.pkl  (from eval.py --saveonly)
+  --egovlp_folder : folder containing {video_id}_360p_224.mp4_1s_1s.npz  (shape: T x 256)
+
+Output (saved to --output_dir):
+  <output_dir>.npz  : { video_id -> np.array (N_steps, 256) }  step embeddings
+  <output_dir>.json : per-video step metadata (step_id, start_time, end_time, embeddings_shape)
 """
 
 import os
@@ -92,7 +103,7 @@ def compute_step_embeddings(pred_pkl, egovlp_folder, output_dir, score_threshold
             emb = emb / (np.linalg.norm(emb) + 1e-8)
             embs.append(emb)
 
-        step_embeddings[vid] = np.stack(embs)                  # (N_steps, 256)
+        step_embeddings[vid] = np.stack(embs)                    # (N_steps, 256)
         step_segments[vid]   = np.stack([starts, ends], axis=1)  # (N_steps, 2)
         step_labels[vid]     = lbls                              # (N_steps,)
 
@@ -102,7 +113,6 @@ def compute_step_embeddings(pred_pkl, egovlp_folder, output_dir, score_threshold
     os.makedirs(os.path.dirname(os.path.abspath(output_dir)), exist_ok=True)
 
     # Save all video embeddings into a single .npz file
-    # keys = video_id, values = np.array (N_steps, 256)
     npz_path = output_dir if output_dir.endswith('.npz') else output_dir + '.npz'
     np.savez_compressed(npz_path, **step_embeddings)
 
@@ -142,7 +152,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_dir',    default='./step_embeddings',
                         help='Output path (will be saved as <output_dir>.npz)')
     parser.add_argument('--score_threshold', type=float, default=0.0,
-                        help='Min score to keep a predicted segment')
+                        help='Min score to keep a predicted segment (fallback to lower thresholds if none pass)')
     args = parser.parse_args()
 
     compute_step_embeddings(
