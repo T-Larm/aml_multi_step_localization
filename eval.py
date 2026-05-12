@@ -128,7 +128,11 @@ def main(args):
             tiou_thresholds = val_db_vars['tiou_thresholds']
         )
     else:
-        output_file = os.path.join(os.path.split(ckpt_file)[0], 'eval_results.pkl')
+        if args.output_pkl:
+            os.makedirs(os.path.dirname(os.path.abspath(args.output_pkl)), exist_ok=True)
+            output_file = args.output_pkl
+        else:
+            output_file = os.path.join(os.path.split(ckpt_file)[0], 'eval_results.pkl')
 
     """5. Test the model"""
     print("\nStart testing model {:s} ...".format(cfg['model_name']))
@@ -178,5 +182,7 @@ if __name__ == '__main__':
     parser.add_argument('--stride', default=30, type=int,)
     parser.add_argument('--videos_type', default='', type=str,
                         choices=['all', 'normal', 'error'])
+    parser.add_argument('--output_pkl', default='', type=str,
+                        help='custom output path for eval_results.pkl (only used with --saveonly)')
     args = parser.parse_args()
     main(args)
