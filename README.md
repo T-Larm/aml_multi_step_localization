@@ -39,11 +39,11 @@ python train.py configs/captaincook_egovlp.yaml \
   --backbone egovlp \
   --feat_folder ./egovlp \
   --num_frames 1 --stride 1 \
-  --division_type recordings \
+  --division_type person \
   --output reproduce
 ```
 
-Checkpoints saved to `ckpt/error/egovlp_recordings_reproduce/` every 5 epochs.
+Checkpoints saved to `ckpt/error/egovlp_person_reproduce/` every 5 epochs.
 
 **Key config (`configs/captaincook_egovlp.yaml`):**
 
@@ -67,12 +67,12 @@ for epoch in 005 010 015 020 025 030 035 040 045 050 055; do
     python eval.py configs/captaincook_egovlp.yaml reproduce \
         --backbone egovlp --feat_folder ./egovlp \
         --num_frames 1 --stride 1 \
-        --division_type recordings \
+        --division_type person \
         -epoch $epoch 2>/dev/null | grep "Average mAP"
 done
 ```
 
-**Best result:** `recordings`, epoch 30 → **Average mAP 12.81%**, boundary Mean TIoU **54.51%**
+**Best result:** `person`, epoch 30 → **Average mAP 14.25%**, boundary Mean TIoU **53.47%**
 
 > **Evaluation metric:** Average mAP computed by `ANETdetection` (`actionformer/libs/utils/metrics.py`, adapted from the [ActivityNet official evaluation code](https://github.com/activitynet/ActivityNet), also used in EPIC-Kitchens). Requires both correct label and tIoU ≥ threshold to count as a true positive. Averaged over tIoU = [0.1, 0.2, 0.3, 0.4, 0.5].
 
@@ -86,9 +86,9 @@ done
 python eval.py configs/captaincook_egovlp_infer.yaml reproduce \
   --backbone egovlp --feat_folder ./egovlp \
   --num_frames 1 --stride 1 \
-  --division_type recordings \
+  --division_type person \
   -epoch 30 --saveonly \
-  --output_pkl ./predictions/recordings_ep030_all.pkl
+  --output_pkl ./predictions/person_ep030_all.pkl
 ```
 
 `captaincook_egovlp_infer.yaml` sets `val_split: ['training', 'validation', 'test']` to cover all 384 videos.
@@ -99,17 +99,17 @@ python eval.py configs/captaincook_egovlp_infer.yaml reproduce \
 
 ```bash
 python compute_step_embeddings.py \
-  --pred_pkl ./predictions/recordings_ep030_all.pkl \
+  --pred_pkl ./predictions/person_ep030_all.pkl \
   --egovlp_folder ./egovlp \
-  --output_dir ./step_embeddings/recordings_ep030 \
+  --output_dir ./step_embeddings/person_ep030 \
   --score_threshold 0.27
 ```
 
 **`--score_threshold 0.27`** keeps predictions with confidence ≥ 0.27, yielding ~15 steps/video on average (close to GT mean of 14.8). If no predictions pass the threshold, the script falls back to lower thresholds automatically.
 
 **Output:**
-- `step_embeddings/recordings_ep030.npz` — `{ video_id → np.array(N_steps, 256) }`
-- `step_embeddings/recordings_ep030.json` — step boundaries and metadata
+- `step_embeddings/person_ep030.npz` — `{ video_id → np.array(N_steps, 256) }`
+- `step_embeddings/person_ep030.json` — step boundaries and metadata
 
 ---
 
@@ -117,25 +117,25 @@ python compute_step_embeddings.py \
 
 ```bash
 python eval_boundary_quality.py \
-  --pred ./step_embeddings/recordings_ep030.json \
+  --pred ./step_embeddings/person_ep030.json \
   --gt ./captaincook/annotation_json/step_annotations.json
 ```
 
-| Metric | recordings ep030 |
-|--------|-----------------|
-| Mean TIoU | 54.51% |
-| Recall@0.1 | 65.59% |
-| Recall@0.5 | 43.21% |
-| F1@0.1 (strict) | 29.38% |
-| F1@0.5 (strict) | 26.39% |
+| Metric | person ep030 |
+|--------|-------------|
+| Mean TIoU | 53.47% |
+| Recall@0.1 | 64.43% |
+| Recall@0.5 | 41.10% |
+| F1@0.1 (strict) | 28.29% |
+| F1@0.5 (strict) | 25.23% |
 
 ---
 
 ## Division Type Comparison
 
-| Split | Best Epoch | ActionFormer mAP | Boundary TIoU |
-|-------|-----------|-----------------|---------------|
-| person | 30 | 14.25% | 53.47% |
-| **recordings** | **30** | **12.81%** | **54.51%** |
+| Split | Best Epoch | ActionFormer mAP | Boundary TIoU | Downstream F1 (Substep 2/4) |
+|-------|-----------|-----------------|---------------|------------------------------|
+| **person** | **30** | **14.25%** | 53.47% | **~0.53** |
+| recordings | 30 | 12.81% | **54.51%** | ~0.45 |
 
-`recordings` is preferred for downstream substeps as it produces better temporal boundaries, which directly determine embedding quality.
+Although `recordings` yields slightly better geometric boundary overlap (TIoU), `person` produces higher-quality step embeddings for downstream substeps. This is because ActionFormer mAP (which is higher for `person`) reflects semantic step transition accuracy — the model cuts the video at more meaningful points — leading to embeddings with cleaner semantic content. Geometric boundary precision alone does not capture this.
