@@ -2,6 +2,28 @@
 
 Uses **ActionFormer** + **EgoVLP** features to localize procedural steps in CaptainCook4D videos and produce per-step embeddings for downstream mistake detection (Substeps 2–4).
 
+## Overview
+
+**What is the goal?**
+Given a raw cooking video, find *when* each step happens and represent it as a fixed-size vector. These vectors (step embeddings) are the input to all downstream substeps.
+
+**What are the two building blocks?**
+
+- **EgoVLP** — A vision-language model pre-trained on Ego4D egocentric video. We use it as a frozen feature extractor: it converts each second of video into a 256-dim vector that is semantically aligned with natural language action descriptions. These features are extracted offline and never fine-tuned.
+
+- **ActionFormer** — A Transformer-based temporal action detector. It takes the EgoVLP feature sequence as input and predicts *where* (start/end time) and *what* (step class) each step is. We train this on CaptainCook4D.
+
+**Why not use GT boundaries directly?**
+GT boundaries are unavailable at test time. ActionFormer learns to approximate them from video features alone, enabling the full pipeline to run without human annotation at inference.
+
+**What does the output look like?**
+```
+step_embeddings/person_ep030.npz
+  └─ "1_7"  → np.array (15, 256)   # 15 predicted steps, each 256-dim
+  └─ "2_3"  → np.array (12, 256)
+  └─ ...                            # 384 videos total
+```
+
 ## Pipeline Overview
 
 ```
