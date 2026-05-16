@@ -84,7 +84,7 @@ Checkpoints saved to `ckpt/error/egovlp_person_reproduce/` every 5 epochs.
 Evaluate all checkpoints on the validation set:
 
 ```bash
-for epoch in 005 010 015 020 025 030 035 040 045 050 055; do
+for epoch in 005 010 015 020 025 030 035 040 045 050; do
     echo -n "Epoch $epoch: "
     python eval.py configs/captaincook_egovlp.yaml reproduce \
         --backbone egovlp --feat_folder ./egovlp \
@@ -94,11 +94,11 @@ for epoch in 005 010 015 020 025 030 035 040 045 050 055; do
 done
 ```
 
-**Best result:** `person`, epoch 30 → **Average mAP 14.25%**, boundary Mean TIoU **53.47%**
+**Best result:** `person`, epoch 30 → **Average mAP 14.25% (val set)**
 
 > **Evaluation metric:** Average mAP computed by `ANETdetection` (`actionformer/libs/utils/metrics.py`, adapted from the [ActivityNet official evaluation code](https://github.com/activitynet/ActivityNet), also used in EPIC-Kitchens). Requires both correct label and tIoU ≥ threshold to count as a true positive. Averaged over tIoU = [0.1, 0.2, 0.3, 0.4, 0.5].
 
-> Note: mAP peaks around epoch 30; training beyond 50 epochs causes overfitting.
+> Note: mAP peaks around epoch 30 and degrades beyond that due to overfitting.
 
 ---
 
@@ -137,27 +137,33 @@ python compute_step_embeddings.py \
 
 ## Step 5: Evaluate Boundary Quality (Optional)
 
+Evaluate on the **test set only** for honest reporting:
+
 ```bash
 python eval_boundary_quality.py \
   --pred ./step_embeddings/person_ep030.json \
-  --gt ./captaincook/annotation_json/step_annotations.json
+  --gt ./captaincook/annotation_json/step_annotations.json \
+  --split_json ./captaincook_actionformer_annotations/combined/person.json \
+  --subset test
 ```
 
-| Metric | person ep030 |
-|--------|-------------|
-| Mean TIoU | 53.47% |
-| Recall@0.1 | 64.43% |
-| Recall@0.5 | 41.10% |
-| F1@0.1 (strict) | 28.29% |
-| F1@0.5 (strict) | 25.23% |
+| Metric | person ep030 (test set) |
+|--------|------------------------|
+| Mean TIoU | 40.71% |
+| Recall@0.1 | 62.21% |
+| Recall@0.5 | 27.03% |
+| F1@0.1 (strict) | 12.13% |
+| F1@0.5 (strict) | 7.63% |
 
 ---
 
 ## Division Type Comparison
 
-| Split | Best Epoch | ActionFormer mAP | Boundary TIoU | Downstream F1 (Substep 2/4) |
-|-------|-----------|-----------------|---------------|------------------------------|
-| **person** | **30** | **14.25%** | 53.47% | **~0.53** |
-| recordings | 30 | 12.81% | **54.51%** | ~0.45 |
+All metrics evaluated on the **test set** for each split.
 
-Although `recordings` yields slightly better geometric boundary overlap (TIoU), `person` produces higher-quality step embeddings for downstream substeps. This is because ActionFormer mAP (which is higher for `person`) reflects semantic step transition accuracy — the model cuts the video at more meaningful points — leading to embeddings with cleaner semantic content. Geometric boundary precision alone does not capture this.
+| Split | Best Epoch | mAP (val) | mAP (test) | Boundary TIoU (test) | Downstream F1 (Substep 2/4) |
+|-------|-----------|-----------|-----------|----------------------|------------------------------|
+| **person** | **30** | **14.25%** | 10.62% | 40.71% | **~0.53** |
+| recordings | 30 | 12.81% | **11.10%** | **42.14%** | ~0.45 |
+
+On the test set, `recordings` achieves slightly higher mAP and boundary TIoU than `person`. Despite this, `person` consistently outperforms on downstream Substep 2/4 tasks. The most likely explanation is that `person` split enforces subject-level generalisation during training — no person appears in both train and val — forcing the model to learn person-agnostic step features. This produces embeddings with more consistent semantic content across different subjects, which is more useful for downstream mistake detection than raw boundary accuracy.
