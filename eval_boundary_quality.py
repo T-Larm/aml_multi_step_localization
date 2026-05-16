@@ -141,14 +141,25 @@ def method2_strict(preds, gts, common_videos, iou_thresholds=(0.1, 0.2, 0.3, 0.4
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pred', required=True, help='ActionFormer_egovlp_person.json')
+    parser.add_argument('--pred', required=True, help='step_embeddings JSON file')
     parser.add_argument('--gt',   required=True, help='step_annotations.json')
+    parser.add_argument('--split_json', default='', help='ActionFormer split JSON to filter by subset')
+    parser.add_argument('--subset', default='test', choices=['training', 'validation', 'test'],
+                        help='Which subset to evaluate (default: test)')
     args = parser.parse_args()
 
     with open(args.pred) as f:
         preds = json.load(f)
     with open(args.gt) as f:
         gts = json.load(f)
+
+    if args.split_json:
+        with open(args.split_json) as f:
+            split_data = json.load(f)['database']
+        subset_vids = set(v for v, info in split_data.items()
+                         if info['subset'].lower() == args.subset.lower())
+        preds = {v: preds[v] for v in subset_vids if v in preds}
+        print(f"Filtered to {args.subset} subset: {len(preds)} videos")
 
     common = set(preds.keys()) & set(gts.keys())
     print(f"Videos — pred: {len(preds)}, GT: {len(gts)}, common: {len(common)}")
